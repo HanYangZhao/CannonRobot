@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+  <head>
+     <link rel="stylesheet" type="text/css" href="layout.css"> 
+    <title>RPi Monitor</title>
+    <script src="./js/script.js"></script>
+    <script src="./js/piservo.js"></script>
+    <script src="./js/pimotor.js"></script>
+    <script src="./js/jquery-2.1.1.min.js">
+    </script>
+  </head>
+  <body onload="setTimeout('init();', 100);">
+    
+    <script>
+     var keys = {};
+    window.addEventListener("keydown",
+    function(e){
+      keys[e.keyCode] = true;
+      switch(e.keyCode){
+        case 37: case 39: case 38:  case 40: // Arrow keys
+        case 32: e.preventDefault(); break; // Space 
+        case 87 : movement_forward(); break; //w
+        case 65 : movement_left(); break; //a
+        case 68 : movement_right(); break; //d
+        case 83 : movement_backward(); break; //s
+        default: break; // do not block other keys
+      }
+    },false);
+    window.addEventListener('keyup',
+    function(e){
+        keys[e.keyCode] = false;
+    switch(e.keyCode){
+      case 87 : movement_stop(); break; //w
+      case 65 : movement_stop(); break; //a
+      case 68 : movement_stop(); break; //d
+      case 83 : movement_stop(); break; //s
+      
+      case 38 : servo_down(); break; //up
+      case 40 : servo_up(); break; //down
+      case 37 : servo_left(); break; //left
+      case 39 : servo_right(); break; //right
+      case 67 : servo_center(); break //c
+    }
+    },
+false);;
+    </script>
+    <center>
+        <h1>RPi Tank</h1>
+        <br>
+      <div class ="wrap"> 
+      
+      
+      
+      <div class ="fleft">
+          <h2> Turret Control</h2>
+      
+        <input type="button" id="movement" value="down(&#8595)" onclick="servo_up();"><br>
+        <input type="button" id="movement" value="left(&#8592)" onclick="servo_left();">
+        <input type="button" id="movement" value="center(c)" onclick="servo_center();">
+        <input type="button" id="movement" value="right(&#8594)" onclick="servo_right();"><br>
+        <input type="button" id="movement" value="up(&#8593)" onclick="servo_down();"><br><br>
+        <input type="button" id="movement" value="pan" onclick="servo_pan();">
+        <input type="button" id="movement" value="tilt" onclick="servo_tilt();"><br><br>
+        Step angle : 10<input type="range"  step="10" value="20" id="step"  name="step" min="10" max="100" onchange="showStepValue(this.value)" >100
+  <br> Current value: <span id="stepValue">20</span>
+  
+        <script type="text/javascript">
+  function showStepValue(newValue)
+  {
+    document.getElementById("stepValue").innerHTML=newValue;
+  }
+  </script>
+  <br>
+  Pan/Tilt Speed : 1(Fast)<input type ="range" id="speed" name="speed" step="1" min="1" max="5" value="1" onchange="showSpeedValue(this.value)">5(Slow)
+  <br> Current value: <span id="speedValue">1</span><br>
+
+        <script type="text/javascript">
+        function showSpeedValue(newValue)
+        {
+                document.getElementById("speedValue").innerHTML=newValue;
+        }
+        </script>
+        <br>
+      </div>
+      <div class="fright">
+          <h2> Movement </h2>
+        <input type="button" id="movement" value="(w)foward" onclick="movement_forward();"><br>
+        <input type="button" id="movement" value="(a)left" onclick="movement_left();">
+        <input type="button" id="movement" value="stop" onclick="movement_stop()">
+        <input type="button" id="movement" value="(d)right" onclick="movement_right();"><br>
+        <input type="button" id="movement" value="(s)back" onclick="movement_backward();"><br><br>
+        <input type="button" id="Fire" value="fire" onclick="movement_fire();"><br><br>
+        <input type="button" id="Fire" value="reload" onclick="movement_reload();">
+        <br><br>
+      </div>
+      <div><img id="mjpeg_dest"></div> 
+     
+      
+      </div>
+      <input id="video_button" type="button">
+      <input id="image_button" type="button">
+      <input id="timelapse_button" type="button">
+      <input id="md_button" type="button">
+      <input id="halt_button" type="button">
+      
+    
+        <p><a href="preview.php">Download Videos and Images</a></p>
+        <p><a href="templog.html">Temp/Humidity Log </a></p>
+      <h2>Settings</h2>
+      <table border=1 width=650>
+        <tr>
+          <td>Resolutions:</td>
+          <td>
+            Load Preset: <select onclick="set_preset(this.value)">
+              <option value="1920 1080 25 25 2592 1944">Select option...</option>
+              <option value="1920 1080 25 25 2592 1944">Std FOV</option>
+              <option value="1296 0730 25 25 2592 1944">16:9 wide FOV</option>
+              <option value="1296 0976 25 25 2592 1944">4:3 full FOV</option>
+              <option value="1920 1080 01 30 2592 1944">Std FOV, x30 Timelapse</option>
+            </select><br>
+            Custom Values:<br>
+            Video res: <input type="text" size=4 id="video_width">x<input type="text" size=4 id="video_height">px<br>
+            Video fps: <input type="text" size=2 id="video_fps">recording, <input type="text" size=2 id="MP4Box_fps">boxing<br>
+            Image res: <input type="text" size=4 id="image_width">x<input type="text" size=4 id="image_height">px<br>
+            <input type="button" value="OK" onclick="set_res();">
+          </td>
+        </tr>
+        
+        <tr>
+          <td>Timelapse-Interval (0.1...3200):</td>
+          <td><input type="text" size=4 id="tl_interval" value="3">s</td>
+        </tr>
+
+  <tr>
+          <td>ISO (100...800), default 0:</td>
+          <td><input type="text" size=4 id="iso"><input type="button" value="OK" onclick="send_cmd('is ' + document.getElementById('iso').value)"></td>
+        </tr>
+
+
+        <tr>
+          <td>Exposure Mode, default 'auto':</td>
+          <td>
+            <select onclick="send_cmd('em ' + this.value)">
+              <option value="auto">Select option...</option>
+              <option value="off">Off</option>
+              <option value="auto">Auto</option>
+              <option value="night">Night</option>
+              <option value="nightpreview">Nightpreview</option>
+              <option value="backlight">Backlight</option>
+              <option value="spotlight">Spotlight</option>
+              <option value="sports">Sports</option>
+              <option value="snow">Snow</option>
+              <option value="beach">Beach</option>
+              <option value="verylong">Verylong</option>
+              <option value="fixedfps">Fixedfps</option>
+            </select>
+          </td>
+        </tr>
+        <tr>
+                      <td>Brightness (0...100), default 50:</td>
+                                <td><input type="text" size=4 id="brightness"><input type="button" value="OK" onclick="send_cmd('br ' + document.getElementById('brightness').value)"></td>
+                                        </tr>
+        <tr>
+          <td>Shutter speed (0...330000), default 0:</td>
+          <td><input type="text" size=4 id="shutter_speed"><input type="button" value="OK" onclick="send_cmd('ss ' + document.getElementById('shutter_speed').value)"></td>
+        </tr>
+        <tr>
+          <td>Image quality (0...100), default 85:</td>
+          <td><input type="text" size=4 id="quality"><input type="button" value="OK" onclick="send_cmd('qu ' + document.getElementById('quality').value)"></td>
+        </tr>
+	
+	<tr>
+          <td>White Balance, default 'auto':</td>
+          <td>
+            <select onclick="send_cmd('wb ' + this.value)">
+              <option value="auto">Select option...</option>
+              <option value="off">Off</option>
+              <option value="auto">Auto</option>
+              <option value="sun">Sun</option>
+              <option value="cloudy">Cloudy</option>
+              <option value="shade">Shade</option>
+              <option value="tungsten">Tungsten</option>
+              <option value="fluorescent">Fluorescent</option>
+              <option value="incandescent">Incandescent</option>
+              <option value="flash">Flash</option>
+              <option value="horizon">Horizon</option>
+            </select>
+          </td>
+        </tr>
+
+	<tr>
+          <td>Video Stabilisation, default: 'off'</td>
+          <td><input type="button" value="ON" onclick="send_cmd('vs 1')"><input type="button" value="OFF" onclick="send_cmd('vs 0')"></td>
+        </tr>
+      </table>
+    </center>
+    <center>
+    <div id="Time"></div>
+    </center>
+    <script>
+        $.ajaxSetup({ cache: false });
+        function loadData(){
+          $.getJSON("./weatherdata/currenttemp.json",function(data) {
+              output = "Temperature: " + data.Temperature +"C" + "<br>" +  " Humidity: " + data.Humidity +"%" + " ";
+            time = "Last Update " + data.Time;
+            
+            document.getElementById("Temperature").innerHTML=output;
+            document.getElementById("Time").innerHTML=time;
+          });
+           setTimeout(loadData,5000);
+        }
+          
+      $( document ).ready(function() {
+        loadData();
+      });
+    </script>
+
+  
+
+  
+  </body>
+</html>
