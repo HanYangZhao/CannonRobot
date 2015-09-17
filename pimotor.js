@@ -46,10 +46,10 @@ function movement_stop() {
 
 function movement_fire(){
   direction = "fire";
-  pi_movment();
+  pi_movement();
 }
 
 function movement_reload(){
   direction = "reload";
-  pi_movment();
+  pi_movement();
 }
